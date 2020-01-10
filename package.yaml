@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - bytestring
 - containers
+- monoidal-containers
 - text
 - attoparsec
 - directory
@@ -30,15 +31,18 @@ dependencies:
 - unix
 - pcap
 - binary
+- streamly == 0.7.0
+- unagi-chan
+- async
 
-ghc-options:
-  - -Wall
-  - -Werror
+#ghc-options:
+  #- -Wall
+  #- -Werror
 library:
   source-dirs: src
 
 executables:
-  pipestatus:
+  trawler:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

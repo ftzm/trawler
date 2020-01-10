@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 11e393b6a939c2df112cbe48aae4537661ce68e0b164f0966a96c9ecca27da1d
+-- hash: d78c574a18786ddc5b85ee308ee6a567e9646fad63bd7e59db568c9db17be2a1
 
 name:           trawler
 version:        0.1.0.0
@@ -34,37 +34,44 @@ library
       Paths_trawler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Werror
   build-depends:
-      attoparsec
+      async
+    , attoparsec
     , base >=4.7 && <5
     , binary
     , bytestring
     , containers
     , directory
     , filepath
+    , monoidal-containers
     , pcap
+    , streamly ==0.7.0
     , text
+    , unagi-chan
     , unix
   default-language: Haskell2010
 
-executable pipestatus
+executable trawler
   main-is: Main.hs
   other-modules:
       Paths_trawler
   hs-source-dirs:
       app
-  ghc-options: -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      attoparsec
+      async
+    , attoparsec
     , base >=4.7 && <5
     , binary
     , bytestring
     , containers
     , directory
     , filepath
+    , monoidal-containers
     , pcap
+    , streamly ==0.7.0
     , text
     , trawler
+    , unagi-chan
     , unix
   default-language: Haskell2010
