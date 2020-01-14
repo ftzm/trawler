@@ -3,12 +3,24 @@
 
 module Proc.Process where
 
-import Control.Exception.Base (catch)
-import Data.Char (isDigit)
-import Data.Maybe (catMaybes)
-import System.Directory (listDirectory, getSymbolicLinkTarget)
-import System.FilePath.Posix (takeBaseName, (</>))
-import System.Posix.Files (getFileStatus, isSocket, fileID)
+--------------------------------------------------------------------------------
+
+import           Control.Exception.Base         ( catch )
+import           Data.Char                      ( isDigit )
+import           Data.Maybe                     ( catMaybes )
+import           System.Directory               ( listDirectory
+                                                , getSymbolicLinkTarget
+                                                )
+import           System.FilePath.Posix          ( takeBaseName
+                                                , (</>)
+                                                )
+import           System.Posix.Files             ( getFileStatus
+                                                , isSocket
+                                                , fileID
+                                                )
+
+--------------------------------------------------------------------------------
+-- Types
 
 type Socket = Int -- Inode
 
@@ -17,9 +29,13 @@ data Proc = Proc
           , sockets :: [Socket]
           } deriving (Show)
 
+--------------------------------------------------------------------------------
+
+-- |List contents of a directory as the full paths.
 listDirFull :: FilePath -> IO [FilePath]
 listDirFull fp = map (fp </>) <$> listDirectory fp
 
+-- |perform an IO action, converting an IOError to Nothing.
 maybeIO :: IO a -> IO (Maybe a)
 maybeIO f = catch (Just <$> f) (\(_ :: IOError) -> return Nothing)
 

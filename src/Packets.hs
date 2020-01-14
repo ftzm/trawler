@@ -70,6 +70,22 @@ data TCPHeader
 
 type PacketHeaders = (LinkHeader, IPHeader, TCPHeader)
 
+data Direction = Up | Down
+
+data Protocol = TCP | UDP
+
+data Traffic
+  = Traffic
+  { size :: Int
+  , direction :: Direction
+  , protocol :: Protocol
+  , localPort :: Int
+  , remoteIP :: IP
+  , remotePort :: Int
+  , remoteHostName :: Maybe String
+  , processName :: Maybe String
+  }
+
 --------------------------------------------------------------------------------
 -- Parse
 

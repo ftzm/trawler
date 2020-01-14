@@ -67,22 +67,6 @@ procStream = do
 
   S.repeatM $ readMVar portToProc
 
-data Direction = Up | Down
-
-data Protocol = TCP | UDP
-
-data Traffic
-  = Traffic
-  { size :: Int
-  , direction :: Direction
-  , protocol :: Protocol
-  , localPort :: Int
-  , remoteIP :: IP
-  , remotePort :: Int
-  , remoteHostName :: Maybe String
-  , processName :: Maybe String
-  }
-
 run = do
    S.drain $ S.mapM print $ S.zipWithM (\x y -> return $ assoc x y) portMapStream procStream
   where
