@@ -35,10 +35,11 @@ dependencies:
 - unagi-chan
 - async
 - brick
+- lens
 
-#ghc-options:
-  #- -Wall
-  #- -Werror
+ghc-options:
+  - -Wall
+  - -Werror
 library:
   source-dirs: src
 

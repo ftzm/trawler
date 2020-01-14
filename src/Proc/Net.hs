@@ -1,7 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Proc.Net where
+module Proc.Net (getTCP, TcpConn(..), Port, IP) where
 
 --------------------------------------------------------------------------------
 
@@ -32,20 +31,21 @@ import           Data.Attoparsec.Text           ( Parser
 import           Data.Either                    ( rights )
 
 --------------------------------------------------------------------------------
--- General
+-- Types
 
 type IP = (Int, Int, Int, Int)
 
 type Port = Int
 
+data TcpConn
+  = TcpConn
+  { destIP :: IP
+  , destPort :: Port
+  , inode :: Int
+  } deriving (Show)
+
 --------------------------------------------------------------------------------
 -- TCP
-
-data TcpConn = TcpConn
-          { destIP :: IP
-          , destPort :: Port
-          , inode :: Int
-          } deriving (Show)
 
 parseHexIP :: Parser IP
 parseHexIP = do
@@ -64,31 +64,27 @@ parseHostPort = do
 readTcp :: Parser TcpConn
 readTcp = do
   _ <- takeWhile isSpace >> takeWhile isDigit >> char ':' >> space
-  (destHost, destPort) <- parseHostPort
-  _                    <- space
-  _                    <- parseHostPort
-  _                    <- space
-  _                    <- hexadecimal @Int
-  _                    <- space
-  _                    <- decimal @Int
-  _                    <- char ':'
-  _                    <- decimal @Int
-  _                    <- space
-  _                    <- decimal @Int
-  _                    <- char ':'
-  _                    <- hexadecimal @Int
-  _                    <- space
-  _                    <- decimal @Int
-  _                    <- takeWhile isSpace
-  _                    <- decimal @Int
-  _                    <- takeWhile isSpace
-  _                    <- decimal @Int
-  _                    <- space
-  inode                <- decimal
-  _                    <- takeText
-  return $ TcpConn destHost destPort inode
+  (dh, dp) <- parseHostPort
+  _        <- space
+  _        <- parseHostPort
+  _        <- space
+  _        <- hexadecimal @Int
+  _        <- space
+  _        <- decimal @Int >> char ':' >> decimal @Int
+  _        <- space
+  _        <- decimal @Int >> char ':' >> hexadecimal @Int
+  _        <- space
+  _        <- decimal @Int
+  _        <- takeWhile isSpace
+  _        <- decimal @Int
+  _        <- takeWhile isSpace
+  _        <- decimal @Int
+  _        <- space
+  i        <- decimal
+  _        <- takeText
+  return $ TcpConn dh dp i
 
-getTcps :: IO [TcpConn]
-getTcps = do
+getTCP :: IO [TcpConn]
+getTCP = do
   contents <- lines <$> readFile "/proc/net/tcp"
   return $ rights $ map (parseOnly readTcp) contents

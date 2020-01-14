@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 --TODO switch to type applications
 
-module Proc.Process where
+module Proc.Process (getProcs, Proc(..), Socket) where
 
 --------------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ mkProc fp = do
   s <- maybeIO $ getSockets fp
   return $ Proc <$> n <*> s
 
-procs :: IO [Proc]
-procs = do
+getProcs :: IO [Proc]
+getProcs = do
   procdirs <- filter (all isDigit . takeBaseName) <$> listDirFull "/proc"
   catMaybes <$> mapM mkProc procdirs

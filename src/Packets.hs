@@ -1,8 +1,8 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Packets where
+module Packets (runPcap, Traffic(..)) where
 
 --------------------------------------------------------------------------------
 -- Imports
@@ -17,7 +17,6 @@ import           Network.Pcap                   ( PktHdr
                                                 , setFilter
                                                 , setDirection
                                                 , openLive
-                                                , datalink
                                                 , Direction(..)
                                                 , hdrCaptureLength
                                                 , Callback
@@ -32,20 +31,11 @@ import           Data.Binary.Get                ( Get
                                                 )
 import           Control.Concurrent.Chan.Unagi  ( newChan
                                                 , InChan
+                                                , OutChan
                                                 , writeChan
-                                                --, getChanContents
-                                                , readChan
                                                 )
 import           Control.Concurrent.Async       ( async )
-import           Control.Monad       ( void )
-import           Streamly.Prelude as S      ( repeatM, drain, mapM, chunksOf, intervalsOf, map)
-import           Streamly.Data.Fold as SF      ( foldMap )
-import           Streamly (SerialT)
-import Data.Map.Monoidal as MM (singleton, getMonoidalMap)
-import Control.Monad.IO.Class
-import Data.Monoid (Sum(..))
-import Data.Function ((&))
-import Data.Map (Map(..))
+import           Control.Monad                  ( void )
 
 --------------------------------------------------------------------------------
 -- Types
@@ -59,7 +49,7 @@ data IPHeader
   = IPHeader
   { srcIP :: IP
   , destIP :: IP
-  , size :: Int
+  , packetSize :: Int
   } deriving (Show)
 
 data TCPHeader
@@ -68,26 +58,24 @@ data TCPHeader
   , destPort :: Int
   } deriving (Show)
 
-type PacketHeaders = (LinkHeader, IPHeader, TCPHeader)
+data PacketDirection = Up | Down deriving (Show)
 
-data Direction = Up | Down
-
-data Protocol = TCP | UDP
+data Protocol = TCP | UDP deriving (Show)
 
 data Traffic
   = Traffic
   { size :: Int
-  , direction :: Direction
+  , direction :: PacketDirection
   , protocol :: Protocol
   , localPort :: Int
   , remoteIP :: IP
   , remotePort :: Int
   , remoteHostName :: Maybe String
   , processName :: Maybe String
-  }
+  } deriving (Show)
 
 --------------------------------------------------------------------------------
--- Parse
+-- Parse Packet Bytes
 
 getLinkHeader :: Get LinkHeader
 getLinkHeader = LinkHeader <$ skip 14
@@ -111,15 +99,18 @@ getTCPHeader = do
   dest <- fromIntegral <$> getWord16be
   return $ TCPHeader src dest
 
-parsePacket :: Get PacketHeaders
-parsePacket = (,,) <$> getLinkHeader <*> getIPHeader <*> getTCPHeader
+parsePacket :: Get Traffic
+parsePacket = do
+  _              <- getLinkHeader
+  IPHeader {..}  <- getIPHeader
+  TCPHeader {..} <- getTCPHeader
+  return $ Traffic packetSize Down TCP destPort srcIP srcPort Nothing Nothing
 
 --------------------------------------------------------------------------------
 -- Pcap
 
 getPacketContent :: PktHdr -> Ptr Word8 -> IO [Word8]
-getPacketContent header =
-  peekArray (fromIntegral (hdrCaptureLength header))
+getPacketContent header = peekArray (fromIntegral (hdrCaptureLength header))
 
 asCallback :: ([Word8] -> IO ()) -> Callback
 asCallback f h p = getPacketContent h p >>= f
@@ -131,27 +122,17 @@ startPcap f = void $ async $ do
   setFilter p "tcp" True (fromIntegral @Int 0)
   void $ loop p (-1) f
 
---------------------------------------------------------------------------------
--- Stream
-
-parseToChan :: (InChan PacketHeaders) -> Callback
+parseToChan :: InChan Traffic -> Callback
 parseToChan chan = asCallback $ \content ->
   case runGetOrFail parsePacket $ pack content of
-    Left _        -> print "failure"
-    Right (_,_,x) -> writeChan chan x
+    Left  _         -> print "failure"
+    Right (_, _, t) -> writeChan chan t
 
-createPacketStream :: SerialT IO PacketHeaders
-createPacketStream = do
-  (inChan, outChan) <- liftIO newChan
-  liftIO $ startPcap $ parseToChan inChan
-  S.repeatM $ readChan outChan
+--------------------------------------------------------------------------------
+-- Interface
 
-portMapStream :: SerialT IO (Map Int Int)
-portMapStream =
-  let
-    getPair (_,IPHeader{size},TCPHeader{destPort}) = (destPort, size)
-    toSing (k, v) = MM.singleton k $ Sum v
-  in
-    createPacketStream
-      & S.intervalsOf 1 (SF.foldMap $ toSing . getPair)
-      & S.map (fmap getSum . getMonoidalMap)
+runPcap :: IO (OutChan Traffic)
+runPcap = do
+  (inChan, outChan) <- newChan
+  startPcap $ parseToChan inChan
+  return outChan

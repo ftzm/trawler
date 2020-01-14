@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d6329a8dc47105fa90436f9f0b0bfe68e2a3b62f82141b0ba2ffe9bb4d3873ad
+-- hash: f93b246d3a425b618ad71a150e8b464cab32e08f2bd070c1bb366148d67a9020
 
 name:           trawler
 version:        0.1.0.0
@@ -29,11 +29,13 @@ library
       Packets
       Proc.Net
       Proc.Process
+      Stream
       Trawler
   other-modules:
       Paths_trawler
   hs-source-dirs:
       src
+  ghc-options: -Wall -Werror
   build-depends:
       async
     , attoparsec
@@ -44,6 +46,7 @@ library
     , containers
     , directory
     , filepath
+    , lens
     , monoidal-containers
     , pcap
     , streamly ==0.7.0
@@ -58,7 +61,7 @@ executable trawler
       Paths_trawler
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       async
     , attoparsec
@@ -69,6 +72,7 @@ executable trawler
     , containers
     , directory
     , filepath
+    , lens
     , monoidal-containers
     , pcap
     , streamly ==0.7.0
