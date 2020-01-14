@@ -39,17 +39,22 @@ listDirFull fp = map (fp </>) <$> listDirectory fp
 maybeIO :: IO a -> IO (Maybe a)
 maybeIO f = catch (Just <$> f) (\(_ :: IOError) -> return Nothing)
 
-getSockets :: FilePath -> IO [Socket]
+getSockets
+  :: FilePath -- ^ The directory of a process in /proc/
+  -> IO [Socket] -- ^ a list of sockets owned by the process
 getSockets fp = do
   fdstats <- mapM getFileStatus =<< listDirFull (fp </> "fd")
   return $ map (fromIntegral . fileID) $ filter isSocket fdstats
 
-getName :: FilePath -> IO String
-getName fp = takeBaseName <$> getSymbolicLinkTarget (fp </> "exe")
+getExeName
+  :: FilePath -- ^ The directory of a process in /proc/
+  -> IO String -- ^ the name of the executable of the process
+getExeName fp = takeBaseName <$> getSymbolicLinkTarget (fp </> "exe")
 
+-- |Build a Proc record from the directory of a process in /proc/
 mkProc :: FilePath -> IO (Maybe Proc)
 mkProc fp = do
-  n <- maybeIO $ getName fp
+  n <- maybeIO $ getExeName fp
   s <- maybeIO $ getSockets fp
   return $ Proc <$> n <*> s
 
