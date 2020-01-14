@@ -42,10 +42,10 @@ import           Streamly.Prelude as S      ( repeatM, drain, mapM, chunksOf, in
 import           Streamly.Data.Fold as SF      ( foldMap )
 import           Streamly (SerialT)
 import Data.Map.Monoidal as MM (singleton, getMonoidalMap)
-import Data.Monoid (Sum(..))
 import Control.Monad.IO.Class
+import Data.Monoid (Sum(..))
 import Data.Function ((&))
-
+import Data.Map (Map(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -84,7 +84,7 @@ getIPHeader :: Get IPHeader
 getIPHeader = do
   skip 2
   size <- fromIntegral <$> getWord16be
-  skip 12
+  skip 8
   src  <- getIP
   dest <- getIP
   return $ IPHeader src dest size
@@ -110,7 +110,7 @@ asCallback f h p = getPacketContent h p >>= f
 
 startPcap :: Callback -> IO ()
 startPcap f = void $ async $ do
-  p <- openLive "wlp61s0" 65535 True 0
+  p <- openLive "wlp61s0" 120 True 500000
   setDirection p In
   setFilter p "tcp" True (fromIntegral @Int 0)
   void $ loop p (-1) f
@@ -130,14 +130,12 @@ createPacketStream = do
   liftIO $ startPcap $ parseToChan inChan
   S.repeatM $ readChan outChan
 
-runPackets :: IO ()
-runPackets =
+portMapStream :: SerialT IO (Map Int Int)
+portMapStream =
   let
     getPair (_,IPHeader{size},TCPHeader{destPort}) = (destPort, size)
     toSing (k, v) = MM.singleton k $ Sum v
   in
     createPacketStream
-      & S.intervalsOf 5 (SF.foldMap $ toSing . getPair)
+      & S.intervalsOf 1 (SF.foldMap $ toSing . getPair)
       & S.map (fmap getSum . getMonoidalMap)
-      & S.mapM print
-      & S.drain

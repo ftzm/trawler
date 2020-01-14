@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d78c574a18786ddc5b85ee308ee6a567e9646fad63bd7e59db568c9db17be2a1
+-- hash: d6329a8dc47105fa90436f9f0b0bfe68e2a3b62f82141b0ba2ffe9bb4d3873ad
 
 name:           trawler
 version:        0.1.0.0
@@ -39,6 +39,7 @@ library
     , attoparsec
     , base >=4.7 && <5
     , binary
+    , brick
     , bytestring
     , containers
     , directory
@@ -63,6 +64,7 @@ executable trawler
     , attoparsec
     , base >=4.7 && <5
     , binary
+    , brick
     , bytestring
     , containers
     , directory

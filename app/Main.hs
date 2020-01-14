@@ -3,5 +3,4 @@ import Packets
 
 main :: IO ()
 main = do
-  print =<< mkPortToProc
-  runPackets
+  run
