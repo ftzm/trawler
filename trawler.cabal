@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f93b246d3a425b618ad71a150e8b464cab32e08f2bd070c1bb366148d67a9020
+-- hash: 42403a225be0ec4e9d7247985de09cc4fe24ce8c8c808f1bf64f6930a1a7fcfb
 
 name:           trawler
 version:        0.1.0.0
@@ -16,9 +16,6 @@ maintainer:     example@example.com
 copyright:      2018 Author name here
 license:        BSD3
 build-type:     Simple
-extra-source-files:
-    README.md
-    ChangeLog.md
 
 source-repository head
   type: git
@@ -35,7 +32,6 @@ library
       Paths_trawler
   hs-source-dirs:
       src
-  ghc-options: -Wall -Werror
   build-depends:
       async
     , attoparsec
@@ -43,16 +39,21 @@ library
     , binary
     , brick
     , bytestring
+    , bytestring-conversion
     , containers
     , directory
     , filepath
+    , ip
     , lens
     , monoidal-containers
+    , network-info
     , pcap
     , streamly ==0.7.0
     , text
     , unagi-chan
     , unix
+    , vector
+    , vty
   default-language: Haskell2010
 
 executable trawler
@@ -61,7 +62,7 @@ executable trawler
       Paths_trawler
   hs-source-dirs:
       app
-  ghc-options: -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       async
     , attoparsec
@@ -69,15 +70,20 @@ executable trawler
     , binary
     , brick
     , bytestring
+    , bytestring-conversion
     , containers
     , directory
     , filepath
+    , ip
     , lens
     , monoidal-containers
+    , network-info
     , pcap
     , streamly ==0.7.0
     , text
     , trawler
     , unagi-chan
     , unix
+    , vector
+    , vty
   default-language: Haskell2010

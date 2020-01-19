@@ -2,7 +2,11 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-module Stream (fullStream, Traffic(..)) where
+module Stream
+  ( fullStream
+  , Traffic(..)
+  )
+where
 
 --------------------------------------------------------------------------------
 
@@ -33,33 +37,38 @@ import           Control.Concurrent.MVar        ( readMVar
                                                 , modifyMVar_
                                                 , newMVar
                                                 )
-import           Control.Monad.IO.Class (liftIO)
+import           Control.Monad.IO.Class         ( liftIO )
 
-import Packets
+import           Packets
 import           Proc.Process
 import           Proc.Net
 
 
 --------------------------------------------------------------------------------
 
-getInodeToProc :: IO (Map Int String)
-getInodeToProc = mkMap <$> getProcs
-  where mkMap = fromList . concatMap (\Proc {..} -> zip sockets (repeat name))
+-- |Convert a list of Proc records into a map from socket inode addresses
+-- to executable names.
+mkInodeToExe :: [Proc] -> Map Int String
+mkInodeToExe = fromList . concatMap (\Proc {..} -> zip sockets (repeat name))
 
-mkPortToProc :: IO (Map Int String)
-mkPortToProc = assoc <$> getInodeToProc <*> getTCP
+-- |Given a list of processes and a list of TCP connections, produce a map from
+-- the local port of the connection to the name of the executable that created
+-- the connection.
+mkPortToExe :: [Proc] -> [SockConn] -> [SockConn]-> Map Int String
+mkPortToExe procs tcp udp = fromList . mapMaybe mkPair $ tcp ++ udp
  where
-  assoc i2p = fromList . mapMaybe
-    (\TcpConn { destPort, inode } -> (destPort, ) <$> lookup inode i2p)
+  inodeToExe = mkInodeToExe procs
+  mkPair SockConn { destPort, inode } = (destPort, ) <$> lookup inode inodeToExe
 
+-- |A stream producing a continuously updated port-to-executable map.
 procStream :: SerialT IO (Map Int String)
 procStream = do
-  portToProc <- liftIO $ newMVar empty
-  _ <- liftIO $ async $ forever $ do
-    newPortToProc <- mkPortToProc
-    modifyMVar_ portToProc (return . union newPortToProc)
+  portToExe <- liftIO $ newMVar empty
+  _         <- liftIO $ async $ forever $ do
+    newPortToExe <- mkPortToExe <$> getProcs <*> getTCP <*> getUDP
+    modifyMVar_ portToExe (return . union newPortToExe)
     threadDelay 1000000
-  S.repeatM $ readMVar portToProc
+  S.repeatM $ readMVar portToExe
 
 createTrafficStream :: SerialT IO Traffic
 createTrafficStream = do

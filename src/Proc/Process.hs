@@ -1,7 +1,12 @@
+{-# LANGUAGE Strict #-}
 {-# LANGUAGE ScopedTypeVariables #-}
---TODO switch to type applications
 
-module Proc.Process (getProcs, Proc(..), Socket) where
+module Proc.Process
+  ( getProcs
+  , Proc(..)
+  , Socket
+  )
+where
 
 --------------------------------------------------------------------------------
 
@@ -33,18 +38,18 @@ data Proc = Proc
 
 -- |List contents of a directory as the full paths.
 listDirFull :: FilePath -> IO [FilePath]
-listDirFull fp = map (fp </>) <$> listDirectory fp
+listDirFull fp = map (fp </>) <$> {-# SCC callListDirectory #-} listDirectory fp
 
 -- |perform an IO action, converting an IOError to Nothing.
 maybeIO :: IO a -> IO (Maybe a)
-maybeIO f = catch (Just <$> f) (\(_ :: IOError) -> return Nothing)
+maybeIO f = catch ({-# SCC setJust #-} Just <$> f) (\(_ :: IOError) -> {-# SCC setNothing #-} return Nothing)
 
 getSockets
   :: FilePath -- ^ The directory of a process in /proc/
   -> IO [Socket] -- ^ a list of sockets owned by the process
 getSockets fp = do
-  fdstats <- mapM getFileStatus =<< listDirFull (fp </> "fd")
-  return $ map (fromIntegral . fileID) $ filter isSocket fdstats
+  fdstats <- {-# SCC fdstats #-} mapM ({-# SCC getFileStatus #-} getFileStatus) =<< {-# SCC callListDirFull #-} listDirFull (fp </> "fd")
+  return $ {-# SCC narrowToSockets #-} map (fromIntegral . fileID) $ filter isSocket fdstats
 
 getExeName
   :: FilePath -- ^ The directory of a process in /proc/
@@ -54,8 +59,8 @@ getExeName fp = takeBaseName <$> getSymbolicLinkTarget (fp </> "exe")
 -- |Build a Proc record from the directory of a process in /proc/
 mkProc :: FilePath -> IO (Maybe Proc)
 mkProc fp = do
-  n <- maybeIO $ getExeName fp
-  s <- maybeIO $ getSockets fp
+  n <- maybeIO $ {-# SCC getExeName #-} getExeName fp
+  s <- maybeIO $ {-# SCC getSockets #-} getSockets fp
   return $ Proc <$> n <*> s
 
 getProcs :: IO [Proc]

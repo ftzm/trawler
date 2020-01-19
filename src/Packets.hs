@@ -1,13 +1,21 @@
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
-module Packets (runPcap, Traffic(..)) where
+module Packets
+  ( runPcap
+  , Traffic(..)
+  , PacketDirection(..)
+  )
+where
 
 --------------------------------------------------------------------------------
 -- Imports
 
-import           Prelude
+import           Prelude hiding (lookup)
 import           Foreign                        ( Word8
                                                 , Ptr
                                                 , peekArray
@@ -20,13 +28,15 @@ import           Network.Pcap                   ( PktHdr
                                                 , Direction(..)
                                                 , hdrCaptureLength
                                                 , Callback
+                                                , lookupNet
+                                                , Network(..)
                                                 )
 import           Data.ByteString.Lazy           ( pack )
 import           Data.Binary.Get                ( Get
                                                 , getWord8
                                                 , getWord16be
                                                 , skip
-                                                --, runGet
+                                                , runGet
                                                 , runGetOrFail
                                                 )
 import           Control.Concurrent.Chan.Unagi  ( newChan
@@ -36,6 +46,21 @@ import           Control.Concurrent.Chan.Unagi  ( newChan
                                                 )
 import           Control.Concurrent.Async       ( async )
 import           Control.Monad                  ( void )
+import           Data.ByteString.Conversion     ( toByteString )
+import           Net.IPv4                       ( toOctets
+                                                )
+import           Data.Map                       ( empty
+                                                , Map
+                                                , insert
+                                                , lookup
+                                                )
+import           Data.Word                      ( Word32 )
+import           Network.Info                   ( getNetworkInterfaces
+                                                , NetworkInterface(..)
+                                                , IPv4(..)
+                                                )
+import           Data.List                      ( foldl' )
+import           Data.Bits                      ( shiftR )
 
 --------------------------------------------------------------------------------
 -- Types
@@ -43,13 +68,14 @@ import           Control.Monad                  ( void )
 data LinkHeader = LinkHeader
   deriving (Show)
 
-type IP = (Int, Int, Int, Int)
+type IP = (Word8, Word8, Word8, Word8)
 
 data IPHeader
   = IPHeader
   { srcIP :: IP
   , destIP :: IP
-  , packetSize :: Int
+  , protocol :: Protocol
+  , size :: Int
   } deriving (Show)
 
 data TCPHeader
@@ -58,40 +84,57 @@ data TCPHeader
   , destPort :: Int
   } deriving (Show)
 
-data PacketDirection = Up | Down deriving (Show)
+data UDPHeader
+  = UDPHeader
+  { srcPort :: Int
+  , destPort :: Int
+  } deriving (Show)
 
-data Protocol = TCP | UDP deriving (Show)
+data PacketDirection = PacketUp | PacketDown deriving (Show, Eq)
+
+data Protocol = TCP | UDP | UnknownProtocol deriving (Show, Eq)
 
 data Traffic
   = Traffic
   { size :: Int
   , direction :: PacketDirection
   , protocol :: Protocol
+  , localIP :: IP
   , localPort :: Int
   , remoteIP :: IP
   , remotePort :: Int
-  , remoteHostName :: Maybe String
+  , remoteHostname :: Maybe String
   , processName :: Maybe String
   } deriving (Show)
 
+data PcapError
+  = NoSuchInterface String
+  | Other
+
 --------------------------------------------------------------------------------
 -- Parse Packet Bytes
+
+byteToProtocol :: Int -> Protocol
+byteToProtocol 6  = TCP
+byteToProtocol 17 = UDP
+byteToProtocol _  = UnknownProtocol
 
 getLinkHeader :: Get LinkHeader
 getLinkHeader = LinkHeader <$ skip 14
 
 getIP :: Get IP
-getIP = (,,,) <$> g <*> g <*> g <*> g
-  where g = fromIntegral <$> getWord8
+getIP = (,,,) <$> g <*> g <*> g <*> g where g = fromIntegral <$> getWord8
 
 getIPHeader :: Get IPHeader
 getIPHeader = do
   skip 2
   size <- fromIntegral <$> getWord16be
-  skip 8
+  skip 5
+  protocol <- byteToProtocol . fromIntegral <$> getWord8
+  skip 2
   src  <- getIP
   dest <- getIP
-  return $ IPHeader src dest size
+  return $ IPHeader src dest protocol size
 
 getTCPHeader :: Get TCPHeader
 getTCPHeader = do
@@ -99,12 +142,32 @@ getTCPHeader = do
   dest <- fromIntegral <$> getWord16be
   return $ TCPHeader src dest
 
-parsePacket :: Get Traffic
-parsePacket = do
-  _              <- getLinkHeader
-  IPHeader {..}  <- getIPHeader
-  TCPHeader {..} <- getTCPHeader
-  return $ Traffic packetSize Down TCP destPort srcIP srcPort Nothing Nothing
+getUDPHeader :: Get UDPHeader
+getUDPHeader = do
+  src  <- fromIntegral <$> getWord16be
+  dest <- fromIntegral <$> getWord16be
+  return $ UDPHeader src dest
+
+parsePacket :: IP -> Get Traffic
+parsePacket localIP = do
+  _                   <- getLinkHeader
+  IPHeader {..}       <- getIPHeader
+  (srcPort, destPort) <- case protocol of
+    TCP -> do
+      TCPHeader {..} <- getTCPHeader
+      return (srcPort, destPort)
+    UDP -> do
+      UDPHeader {..} <- getUDPHeader
+      return (srcPort, destPort)
+    UnknownProtocol -> fail "Unknown Protocol"
+
+  let (direction, localPort, remoteIP, remotePort) = if localIP == srcIP
+        then (PacketUp, srcPort, destIP, destPort)
+        else (PacketDown, destPort, srcIP, srcPort)
+      remoteHostname = Nothing
+      processName    = Nothing
+
+  return Traffic { .. }
 
 --------------------------------------------------------------------------------
 -- Pcap
@@ -115,18 +178,35 @@ getPacketContent header = peekArray (fromIntegral (hdrCaptureLength header))
 asCallback :: ([Word8] -> IO ()) -> Callback
 asCallback f h p = getPacketContent h p >>= f
 
-startPcap :: Callback -> IO ()
-startPcap f = void $ async $ do
-  p <- openLive "wlp61s0" 120 True 500000
-  setDirection p In
-  setFilter p "tcp" True (fromIntegral @Int 0)
-  void $ loop p (-1) f
+startPcap :: String -> Callback -> IO ()
+startPcap interface f = void $ async $ do
+  p <- openLive interface 120 True 500000
+  setDirection p InOut
+  --setFilter p "tcp" True (fromIntegral @Int 0)
+  void $ loop p (-1) $ f
 
-parseToChan :: InChan Traffic -> Callback
-parseToChan chan = asCallback $ \content ->
-  case runGetOrFail parsePacket $ pack content of
-    Left  _         -> print "failure"
+parseToChan :: InChan Traffic -> IP -> Callback
+parseToChan chan localIP = asCallback $ \content ->
+  case runGetOrFail (parsePacket localIP) $ pack content of
+    Left _          -> return ()
     Right (_, _, t) -> writeChan chan t
+
+--------------------------------------------------------------------------------
+-- Network Info
+
+word32ToIP :: Word32 -> IP
+word32ToIP x = ( fromIntegral $ x
+               , fromIntegral $ x `shiftR` 8
+               , fromIntegral $ x `shiftR` 16
+               , fromIntegral $ x `shiftR` 24 )
+
+ipv4ToIP :: IPv4 -> IP
+ipv4ToIP (IPv4 w) = word32ToIP w
+
+getInterfaceMap :: IO (Map String IP)
+getInterfaceMap = foldl' build empty <$> getNetworkInterfaces
+  where
+    build m i = insert (name i) (ipv4ToIP $ ipv4 i) m
 
 --------------------------------------------------------------------------------
 -- Interface
@@ -134,5 +214,10 @@ parseToChan chan = asCallback $ \content ->
 runPcap :: IO (OutChan Traffic)
 runPcap = do
   (inChan, outChan) <- newChan
-  startPcap $ parseToChan inChan
-  return outChan
+  interfaces <- getInterfaceMap
+  case lookup interface interfaces of
+    Just ip -> do
+      startPcap interface $ parseToChan inChan ip
+      return outChan
+    Nothing -> fail "No such device"
+  where interface = "wlp61s0"
