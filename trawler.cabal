@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 42403a225be0ec4e9d7247985de09cc4fe24ce8c8c808f1bf64f6930a1a7fcfb
+-- hash: 55e78c636e913f4a2c5fb7c75424120566a69486007be64d78c18e34f7480a85
 
 name:           trawler
 version:        0.1.0.0
@@ -43,7 +43,6 @@ library
     , containers
     , directory
     , filepath
-    , ip
     , lens
     , monoidal-containers
     , network-info
@@ -74,7 +73,6 @@ executable trawler
     , containers
     , directory
     , filepath
-    , ip
     , lens
     , monoidal-containers
     , network-info

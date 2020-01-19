@@ -31,14 +31,13 @@ dependencies:
 - unix
 - pcap
 - binary
-- streamly == 0.7.0
+- streamly
 - unagi-chan
 - async
 - brick
 - lens
 - vty
 - bytestring-conversion
-- ip
 - network-info
 - vector
 

@@ -47,8 +47,6 @@ import           Control.Concurrent.Chan.Unagi  ( newChan
 import           Control.Concurrent.Async       ( async )
 import           Control.Monad                  ( void )
 import           Data.ByteString.Conversion     ( toByteString )
-import           Net.IPv4                       ( toOctets
-                                                )
 import           Data.Map                       ( empty
                                                 , Map
                                                 , insert
