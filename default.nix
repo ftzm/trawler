@@ -1,5 +1,5 @@
 let
-  pkgs = import <nixpkgs> { };
+  pkgs = import (import ./nix/sources.nix).nixpkgs {};
   compilerVersion = "ghc865";
   compiler = pkgs.haskell.packages."${compilerVersion}";
 in
