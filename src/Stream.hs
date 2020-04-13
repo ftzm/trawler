@@ -4,6 +4,7 @@
 
 module Stream
   ( fullStream
+  , createTrafficStream
   , Traffic(..)
   )
 where
@@ -25,6 +26,7 @@ import           Data.Function                  ( (&) )
 import           Data.Maybe                     ( mapMaybe )
 import           Data.Map                       ( Map
                                                 , fromList
+                                                , findWithDefault
                                                 , lookup
                                                 , union
                                                 , empty
@@ -83,4 +85,4 @@ fullStream = S.zipWithM (\x y -> return $ assoc x y) trafficStream procStream
  where
   assoc :: [Traffic] -> Map Int String -> [Traffic]
   assoc traffic procMap =
-    (\t -> t { processName = lookup (localPort t) procMap }) <$> traffic
+    (\t -> t { processName = findWithDefault (processName t) (localPort t) procMap }) <$> traffic

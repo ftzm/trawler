@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 55e78c636e913f4a2c5fb7c75424120566a69486007be64d78c18e34f7480a85
+-- hash: 2cd72054ab280e5b5cd2bccd816a0688b0a044d94954da36e72d6b71e91d48c8
 
 name:           trawler
 version:        0.1.0.0
@@ -23,9 +23,12 @@ source-repository head
 
 library
   exposed-modules:
+      Draw
+      Errors
       Packets
       Proc.Net
       Proc.Process
+      State
       Stream
       Trawler
   other-modules:
@@ -42,12 +45,13 @@ library
     , bytestring-conversion
     , containers
     , directory
+    , exceptions
     , filepath
     , lens
     , monoidal-containers
     , network-info
     , pcap
-    , streamly ==0.7.0
+    , streamly
     , text
     , unagi-chan
     , unix
@@ -72,12 +76,13 @@ executable trawler
     , bytestring-conversion
     , containers
     , directory
+    , exceptions
     , filepath
     , lens
     , monoidal-containers
     , network-info
     , pcap
-    , streamly ==0.7.0
+    , streamly
     , text
     , trawler
     , unagi-chan

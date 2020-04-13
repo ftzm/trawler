@@ -22,6 +22,7 @@ import           Foreign                        ( Word8
                                                 )
 import           Network.Pcap                   ( PktHdr
                                                 , loop
+                                                , dispatch
                                                 , setFilter
                                                 , setDirection
                                                 , openLive
@@ -44,8 +45,8 @@ import           Control.Concurrent.Chan.Unagi  ( newChan
                                                 , OutChan
                                                 , writeChan
                                                 )
-import           Control.Concurrent.Async       ( async )
-import           Control.Monad                  ( void )
+import           Control.Concurrent.Async       ( async, wait )
+import           Control.Monad                  ( void, (<=<) )
 import           Data.ByteString.Conversion     ( toByteString )
 import           Data.Map                       ( empty
                                                 , Map
@@ -59,6 +60,10 @@ import           Network.Info                   ( getNetworkInterfaces
                                                 )
 import           Data.List                      ( foldl' )
 import           Data.Bits                      ( shiftR )
+import           Control.Monad.Catch            ( throwM, Exception )
+
+import System.Exit ( die )
+import System.IO.Error (catchIOError)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -102,7 +107,7 @@ data Traffic
   , remoteIP :: IP
   , remotePort :: Int
   , remoteHostname :: Maybe String
-  , processName :: Maybe String
+  , processName :: String
   } deriving (Show)
 
 data PcapError
@@ -163,7 +168,7 @@ parsePacket localIP = do
         then (PacketUp, srcPort, destIP, destPort)
         else (PacketDown, destPort, srcIP, srcPort)
       remoteHostname = Nothing
-      processName    = Nothing
+      processName    = show localPort
 
   return Traffic { .. }
 
@@ -180,8 +185,7 @@ startPcap :: String -> Callback -> IO ()
 startPcap interface f = void $ async $ do
   p <- openLive interface 120 True 500000
   setDirection p InOut
-  --setFilter p "tcp" True (fromIntegral @Int 0)
-  void $ loop p (-1) $ f
+  loop p (-1) $ f
 
 parseToChan :: InChan Traffic -> IP -> Callback
 parseToChan chan localIP = asCallback $ \content ->
