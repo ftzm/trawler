@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2cd72054ab280e5b5cd2bccd816a0688b0a044d94954da36e72d6b71e91d48c8
+-- hash: e245873cd015aec9dc8bc9dfb1907561c9f3884f34f9074a8ea633182fe081a7
 
 name:           trawler
 version:        0.1.0.0
@@ -50,6 +50,7 @@ library
     , lens
     , monoidal-containers
     , network-info
+    , optparse-applicative
     , pcap
     , streamly
     , text
@@ -81,6 +82,7 @@ executable trawler
     , lens
     , monoidal-containers
     , network-info
+    , optparse-applicative
     , pcap
     , streamly
     , text

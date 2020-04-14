@@ -41,6 +41,7 @@ dependencies:
 - network-info
 - vector
 - exceptions
+- optparse-applicative
 
 #ghc-options:
   #- -Wall

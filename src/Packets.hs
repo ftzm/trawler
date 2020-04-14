@@ -9,6 +9,7 @@ module Packets
   ( runPcap
   , Traffic(..)
   , PacketDirection(..)
+  , IP
   )
 where
 
@@ -213,8 +214,8 @@ getInterfaceMap = foldl' build empty <$> getNetworkInterfaces
 --------------------------------------------------------------------------------
 -- Interface
 
-runPcap :: IO (OutChan Traffic)
-runPcap = do
+runPcap :: String -> IO (OutChan Traffic)
+runPcap interface = do
   (inChan, outChan) <- newChan
   interfaces <- getInterfaceMap
   case lookup interface interfaces of
@@ -222,4 +223,3 @@ runPcap = do
       startPcap interface $ parseToChan inChan ip
       return outChan
     Nothing -> fail "No such device"
-  where interface = "wlp61s0"

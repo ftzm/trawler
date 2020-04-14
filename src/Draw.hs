@@ -33,6 +33,7 @@ import           Data.List                     as L
                                                 , sortOn
                                                 , filter
                                                 , map
+                                                , intersperse
                                                 )
 import           Data.Vector                   as VC
                                                 ( Vector
@@ -77,9 +78,27 @@ procTotals =
   M.toList
     . foldl' (\m Traffic {..} -> insertWith (+) processName size m) M.empty
 
+padLeft :: Int -> Char -> String -> String
+padLeft size padder string = pad ++ string
+  where
+    buffer = max 0 $ size - (length string)
+    pad = replicate buffer padder
+
+formatIP :: IP -> String
+formatIP (a,b,c,d) = mconcat $ intersperse "." $ L.map show [a,b,c,d]
+
 formatTraffic :: Traffic -> String
 formatTraffic Traffic {..} =
-  printf "%s %s:%s" (show direction) (show remoteIP) (show remotePort)
+  mconcat $ [ padLeft 19 ' ' $ formatIP remoteIP
+            , ":"
+            , padLeft 5 ' ' $ show remotePort
+            , arrow
+            , show localPort
+            ]
+  where
+    arrow = case direction of
+      PacketUp -> " -> "
+      PacketDown -> " <- "
 
 drawUI :: AppState -> [Widget Name]
 drawUI s =

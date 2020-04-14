@@ -72,16 +72,16 @@ procStream = do
     threadDelay 1000000
   S.repeatM $ readMVar portToExe
 
-createTrafficStream :: SerialT IO Traffic
-createTrafficStream = do
-  outChan <- liftIO runPcap
+createTrafficStream :: String -> SerialT IO Traffic
+createTrafficStream interface = do
+  outChan <- liftIO $ runPcap interface
   S.repeatM $ readChan outChan
 
-trafficStream :: SerialT IO [Traffic]
-trafficStream = createTrafficStream & S.intervalsOf 1 (SF.foldMap (: []))
+trafficStream :: String -> SerialT IO [Traffic]
+trafficStream interface = createTrafficStream interface & S.intervalsOf 1 (SF.foldMap (: []))
 
-fullStream :: SerialT IO [Traffic]
-fullStream = S.zipWithM (\x y -> return $ assoc x y) trafficStream procStream
+fullStream :: String -> SerialT IO [Traffic]
+fullStream interface = S.zipWithM (\x y -> return $ assoc x y) (trafficStream interface) procStream
  where
   assoc :: [Traffic] -> Map Int String -> [Traffic]
   assoc traffic procMap =

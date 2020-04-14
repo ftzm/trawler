@@ -89,8 +89,23 @@ import           Draw
 import Control.Exception (catch, SomeException)
 import System.IO.Error (catchIOError)
 
+import Options.Applicative
 --------------------------------------------------------------------------------
 -- Setup
+
+--------------------------------------------------------------------------------
+-- Config
+
+data Options = Options
+  { interface :: String
+  }
+
+options :: Parser Options
+options = Options
+  <$> strOption
+     ( long "interface"
+     <> help "The network interface to watch"
+     )
 
 app :: App AppState AppStep Name
 app = App { appDraw         = drawUI
@@ -100,12 +115,11 @@ app = App { appDraw         = drawUI
           , appAttrMap      = const theMap
           }
 
-test = S.drain $ S.mapM (print) createTrafficStream
-
 run :: IO ()
 run = do
+  opts <- execParser opts
   chan <- newBChan 10
-  _    <- forkIO $ S.drain $ S.mapM (writeBChan chan . AppStep) fullStream
+  _    <- forkIO $ S.drain $ S.mapM (writeBChan chan . AppStep) $ fullStream $ interface opts
   -- Build the inital appstate ourselves to capture any errors; Brick will
   -- swallow them once it takes over.
   AppStep traffic <- readBChan chan
@@ -113,3 +127,7 @@ run = do
   let buildVty = V.mkVty V.defaultConfig
   initialVty <- buildVty
   void $ customMain initialVty buildVty (Just chan) app start
+  where opts = info (options <**> helper)
+          ( fullDesc
+         <> progDesc "Watch network traffic on INTERFACE"
+         <> header "trawler - a network traffic monitor" )
