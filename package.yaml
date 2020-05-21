@@ -43,9 +43,10 @@ dependencies:
 - exceptions
 - optparse-applicative
 
-#ghc-options:
-  #- -Wall
-  #- -Werror
+ghc-options:
+  - -Wall
+  - -Werror
+  - -Wno-unused-do-bind
 library:
   source-dirs: src
 

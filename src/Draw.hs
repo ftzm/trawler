@@ -2,20 +2,10 @@
 
 module Draw where
 
-import qualified Graphics.Vty                  as V
 import           Brick                          ( Widget
-                                                , EventM
                                                 , AttrMap
-                                                , BrickEvent
-                                                , App(..)
-                                                , Next
-                                                , customMain
-                                                , neverShowCursor
-                                                , continue
-                                                , BrickEvent(..)
                                                 , str
                                                 , attrMap
-                                                , halt
                                                 , vBox
                                                 , (<+>)
                                                 , (<=>)
@@ -24,10 +14,7 @@ import           Brick                          ( Widget
                                                 , fill
                                                 )
 import           Brick.Widgets.Border           ( borderWithLabel )
-import           Data.Ord                       ( Down(..) )
-import           Control.Monad                  ( void
-                                                , join
-                                                )
+import           Control.Monad                  ( join)
 import           Data.List                     as L
                                                 ( foldl'
                                                 , sortOn
@@ -35,28 +22,19 @@ import           Data.List                     as L
                                                 , map
                                                 , intersperse
                                                 )
-import           Data.Vector                   as VC
-                                                ( Vector
-                                                , take
-                                                , cons
+import           Data.Map.Strict               as M
+                                                ( toList
                                                 , empty
-                                                , fromList
-                                                , (!?)
-                                                , filter
-                                                , concat
+                                                , insertWith
+                                                )
+import           Data.Ord                       ( Down(..) )
+import           Data.Vector                   as VC
+                                                ( take
                                                 , map
                                                 , toList
                                                 )
-import           Data.Map.Strict               as M
-                                                ( Map
-                                                , adjust
-                                                , alter
-                                                , toList
-                                                , empty
-                                                , insertWith
-                                                , fromList
-                                                )
-import           Text.Printf
+import qualified Graphics.Vty                  as V
+import           Text.Printf (printf)
 import           Packets
 import           State
 
@@ -65,8 +43,8 @@ byteCountToHuman i = showAmount (floatAmount / unit) suffix
  where
   floatAmount    = fromIntegral i
   kb             = 1000.0
-  mb             = 1000.0 ^ 2
-  gb             = 1000.0 ^ 3
+  mb             = 1000.0 ^ (2 :: Integer)
+  gb             = 1000.0 ^ (3 :: Integer)
   (unit, suffix) = head $ L.filter
     ((<= floatAmount) . fst)
     [(gb, "GB"), (mb, "MB"), (kb, "kB"), (1, "B")]

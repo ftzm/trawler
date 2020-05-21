@@ -23,22 +23,17 @@ import           Foreign                        ( Word8
                                                 )
 import           Network.Pcap                   ( PktHdr
                                                 , loop
-                                                , dispatch
-                                                , setFilter
                                                 , setDirection
                                                 , openLive
                                                 , Direction(..)
                                                 , hdrCaptureLength
                                                 , Callback
-                                                , lookupNet
-                                                , Network(..)
                                                 )
 import           Data.ByteString.Lazy           ( pack )
 import           Data.Binary.Get                ( Get
                                                 , getWord8
                                                 , getWord16be
                                                 , skip
-                                                , runGet
                                                 , runGetOrFail
                                                 )
 import           Control.Concurrent.Chan.Unagi  ( newChan
@@ -46,9 +41,8 @@ import           Control.Concurrent.Chan.Unagi  ( newChan
                                                 , OutChan
                                                 , writeChan
                                                 )
-import           Control.Concurrent.Async       ( async, wait )
-import           Control.Monad                  ( void, (<=<) )
-import           Data.ByteString.Conversion     ( toByteString )
+import           Control.Concurrent.Async       ( async )
+import           Control.Monad                  ( void )
 import           Data.Map                       ( empty
                                                 , Map
                                                 , insert
@@ -61,10 +55,6 @@ import           Network.Info                   ( getNetworkInterfaces
                                                 )
 import           Data.List                      ( foldl' )
 import           Data.Bits                      ( shiftR )
-import           Control.Monad.Catch            ( throwM, Exception )
-
-import System.Exit ( die )
-import System.IO.Error (catchIOError)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -110,10 +100,6 @@ data Traffic
   , remoteHostname :: Maybe String
   , processName :: String
   } deriving (Show)
-
-data PcapError
-  = NoSuchInterface String
-  | Other
 
 --------------------------------------------------------------------------------
 -- Parse Packet Bytes

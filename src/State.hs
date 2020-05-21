@@ -2,14 +2,19 @@
 
 module State where
 
+import           Brick                          ( BrickEvent(..)
+                                                , EventM
+                                                , Next
+                                                , continue
+                                                , halt
+                                                )
+import           Data.List                     as L
+                                                ( foldl'
+                                                )
 import           Data.Map.Strict               as M
                                                 ( Map
-                                                , adjust
-                                                , alter
-                                                , toList
                                                 , empty
-                                                , insertWith
-                                                , fromList
+                                                , alter
                                                 )
 import           Data.Maybe                     ( fromMaybe )
 import           Data.Vector                   as VC
@@ -18,27 +23,11 @@ import           Data.Vector                   as VC
                                                 , cons
                                                 , empty
                                                 , fromList
+                                                , filter
                                                 , (!?)
-                                                , filter
-                                                , concat
-                                                , map
-                                                , toList
                                                 )
-import           Data.List                     as L
-                                                ( foldl'
-                                                , sortOn
-                                                , filter
-                                                , map
-                                                )
-import           Brick                          ( BrickEvent(..)
-                                                , EventM
-                                                , Next
-                                                , continue
-                                                , halt
-                                                )
-import System.Exit ( die )
-import Control.Monad.IO.Class (liftIO)
 import qualified Graphics.Vty                  as V
+
 import           Packets
 import Errors
 
@@ -55,6 +44,7 @@ data AppState
   , downMap :: TrafficMap
   }
 
+startState :: AppState
 startState = AppState VC.empty
                             (TrafficMap PacketUp M.empty)
                             (TrafficMap PacketDown M.empty)
@@ -106,5 +96,5 @@ handleEvent
   :: AppState -> BrickEvent Name AppStep -> EventM Name (Next AppState)
 handleEvent s (AppEvent (AppStep traffic)) = continue $ updateState s traffic
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
-handleEvent s (AppEvent (AppError e)) = halt s
+handleEvent s (AppEvent (AppError _)) = halt s
 handleEvent s _ = continue s
