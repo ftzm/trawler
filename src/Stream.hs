@@ -6,6 +6,7 @@ module Stream
   ( fullStream
   , createTrafficStream
   , Traffic(..)
+  , BrickDone(..)
   )
 where
 
@@ -33,6 +34,7 @@ import           Data.Map                       ( Map
                                                 )
 import           Control.Concurrent.Chan.Unagi  ( readChan )
 import           Control.Monad                  ( forever )
+import           Control.Monad.Catch            ( throwM )
 import           Control.Concurrent             ( threadDelay )
 import           Control.Concurrent.Async       ( async )
 import           Control.Concurrent.MVar        ( readMVar
@@ -42,6 +44,7 @@ import           Control.Concurrent.MVar        ( readMVar
 import           Control.Monad.IO.Class         ( liftIO )
 
 import           Packets
+import           Errors
 import           Proc.Process
 import           Proc.Net
 
@@ -74,8 +77,12 @@ procStream = do
 
 createTrafficStream :: String -> SerialT IO Traffic
 createTrafficStream interface = do
-  outChan <- liftIO $ runPcap interface
-  S.repeatM $ readChan outChan
+  chanResult <- liftIO $ runPcap interface
+  case chanResult of
+    Right outChan -> S.repeatM $ readChan outChan
+    Left e -> do
+      liftIO $ putStrLn e
+      throwM NoDevice
 
 trafficStream :: String -> SerialT IO [Traffic]
 trafficStream interface = createTrafficStream interface & S.intervalsOf 1 (SF.foldMap (: []))

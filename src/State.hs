@@ -29,11 +29,9 @@ import           Data.Vector                   as VC
 import qualified Graphics.Vty                  as V
 
 import           Packets
-import Errors
-
 type Name = ()
 
-data AppStep = AppStep [Traffic] | AppError TrawlerError deriving Show
+data AppStep = AppStep [Traffic] deriving Show
 
 data TrafficMap = TrafficMap PacketDirection (Map String Int)
 
@@ -96,5 +94,4 @@ handleEvent
   :: AppState -> BrickEvent Name AppStep -> EventM Name (Next AppState)
 handleEvent s (AppEvent (AppStep traffic)) = continue $ updateState s traffic
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
-handleEvent s (AppEvent (AppError _)) = halt s
 handleEvent s _ = continue s

@@ -13,9 +13,9 @@ import           Brick                          ( App(..)
                                                 )
 import           Brick.BChan                    ( newBChan
                                                 , writeBChan
-                                                , readBChan
+                                                , BChan
                                                 )
-import           Control.Concurrent             ( forkIO )
+import           Control.Concurrent.Async       ( concurrently )
 import           Control.Monad                  ( void )
 import qualified Graphics.Vty                  as V
 import           Prelude                 hiding ( lookup
@@ -28,11 +28,14 @@ import           Streamly.Prelude              as S
                                                 ( drain
                                                 , mapM
                                                 )
+import Control.Exception ( catches, Handler(..) )
+import           Control.Monad.Catch            ( throwM )
 import Options.Applicative
 
 import           Stream
 import           State
 import           Draw
+import           Errors
 
 
 --------------------------------------------------------------------------------
@@ -49,6 +52,12 @@ options = Options
      <> help "The network interface to watch"
      )
 
+runOptions :: IO Options
+runOptions =
+  execParser $ info (options <**> helper) $ fullDesc
+  <> progDesc "Watch network traffic on INTERFACE"
+  <> header "trawler - a network traffic monitor"
+
 app :: App AppState AppStep Name
 app = App { appDraw         = drawUI
           , appChooseCursor = neverShowCursor
@@ -59,25 +68,35 @@ app = App { appDraw         = drawUI
 
 run :: IO ()
 run = do
-  opts <- execParser $ info (options <**> helper) $
-          fullDesc
-          <> progDesc "Watch network traffic on INTERFACE"
-          <> header "trawler - a network traffic monitor"
-
-  -- Start streaming packet data into BChan for Brick
+  opts <- runOptions
   chan <- newBChan 10
-  forkIO
-    $ S.drain
-    $ S.mapM (writeBChan chan . AppStep)
-    $ fullStream
-    $ interface opts
+  flip catches [ Handler $ noDeviceHandler opts
+               , Handler brickDoneHandler
+               ]
+    $ void $ concurrently
+        (runStream opts chan)
+        (runBrick chan)
+  where
+    runBrick :: BChan AppStep -> IO AppState
+    runBrick chan = do
+      let
+        start = mkStartState []
+        buildVty = V.mkVty V.defaultConfig
+      initialVty <- buildVty
+      customMain initialVty buildVty (Just chan) app start
+      throwM BrickDone
 
-  -- Build a real inital appstate ourselves to capture any errors;
-  -- Brick will swallow them once it takes over.
-  AppStep traffic <- readBChan chan
-  let start = mkStartState traffic
-      buildVty = V.mkVty V.defaultConfig
-  initialVty <- buildVty
+    runStream :: Options -> BChan AppStep -> IO ()
+    runStream opts chan = S.drain
+      $ S.mapM (writeBChan chan . AppStep)
+      $ fullStream
+      $ interface opts
 
-  -- Start Brick interface
-  void $ customMain initialVty buildVty (Just chan) app start
+    noDeviceHandler :: Options -> NoDevice -> IO ()
+    noDeviceHandler opts _ = putStrLn
+      $ "Error: Device "
+      <> (interface opts)
+      <> " missing or forbidden."
+
+    brickDoneHandler :: BrickDone -> IO ()
+    brickDoneHandler _ = return ()

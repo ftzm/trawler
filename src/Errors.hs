@@ -1,6 +1,9 @@
 module Errors where
 
-data TrawlerError
-  = NoInterface String
-  | NoInterfacePermission String
-  deriving Show
+import           Control.Monad.Catch            ( Exception )
+
+data NoDevice = NoDevice deriving Show
+instance Exception NoDevice
+
+data BrickDone = BrickDone deriving Show
+instance Exception BrickDone

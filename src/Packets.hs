@@ -200,12 +200,13 @@ getInterfaceMap = foldl' build empty <$> getNetworkInterfaces
 --------------------------------------------------------------------------------
 -- Interface
 
-runPcap :: String -> IO (OutChan Traffic)
+runPcap :: String -> IO (Either String (OutChan Traffic))
 runPcap interface = do
   (inChan, outChan) <- newChan
   interfaces <- getInterfaceMap
   case lookup interface interfaces of
     Just ip -> do
       startPcap interface $ parseToChan inChan ip
-      return outChan
-    Nothing -> fail "No such device"
+      return $ Right outChan
+    Nothing -> do
+      return $ Left "No such device"
